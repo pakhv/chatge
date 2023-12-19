@@ -1,11 +1,7 @@
 const OLLAMA_URL: &str = "host.docker.internal:11434";
-//const CHAT_ENDPOINT: &str = "/api/chat";
+const CHAT_ENDPOINT: &str = "/api/chat";
 
-use std::{
-    io::{Read, Write},
-    net::TcpStream,
-    time::Duration,
-};
+use super::http_client::{HttpMethod, HttpRequest};
 
 pub fn get_ollama_response(user_question: &str) {
     let json_data = format!(
@@ -14,37 +10,19 @@ pub fn get_ollama_response(user_question: &str) {
   "messages": [
     {{
       "role": "user",
-      "content": "write 2 words in response"
+      "content": "{user_question}"
     }}
   ]
 }}"#
     );
-    let content_length = json_data.as_bytes().len();
 
-    let request = format!(
-        r#"POST /api/chat HTTP/1.1
-Host: {OLLAMA_URL}
-Content-Type: application/json
-Content-length: {content_length}
+    let request = HttpRequest::new(OLLAMA_URL)
+        .set_method(HttpMethod::Post)
+        .set_endpoint(CHAT_ENDPOINT)
+        .set_header("Host", OLLAMA_URL)
+        .set_header("Content-Type", "application/json")
+        .set_body(json_data.as_bytes())
+        .send();
 
-{json_data}"#
-    );
-
-    let mut tcp_stream = TcpStream::connect(OLLAMA_URL).unwrap_or_else(|e| {
-        panic!("Unable to connect to ollama server. {e}");
-    });
-
-    tcp_stream
-        .write_all(request.as_bytes())
-        .unwrap_or_else(|e| {
-            panic!("Error while writing to stream. {e}");
-        });
-
-    let mut buffer = String::new();
-    tcp_stream
-        .set_read_timeout(Some(Duration::from_secs(30)))
-        .unwrap();
-    let _a = tcp_stream.read_to_string(&mut buffer);
-
-    println!("{}", buffer);
+    println!("{request:?}");
 }
