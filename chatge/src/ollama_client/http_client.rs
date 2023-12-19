@@ -1,11 +1,14 @@
 use std::{
     collections::HashMap,
     fmt::Display,
-    io::{Read, Write},
+    io::{BufRead, BufReader, Write},
     net::{TcpStream, ToSocketAddrs},
     str::FromStr,
     time::Duration,
+    usize,
 };
+
+const TRANSFER_ENCODING_CHUNKED: &str = "transfer-encoding: chunked";
 
 #[derive(Debug)]
 pub struct HttpRequest<'a, A>
@@ -80,25 +83,110 @@ where
             todo!()
         };
 
-        println!("{}", String::from_utf8(request_bytes.clone()).unwrap());
-
         tcp_stream.write_all(&request_bytes).unwrap_or_else(|e| {
             panic!("Error while writing to stream. {e}");
         });
 
-        let mut buffer = String::new();
-        tcp_stream
-            .set_read_timeout(Some(Duration::from_secs(30)))
-            .unwrap();
-        let _a = tcp_stream.read_to_string(&mut buffer);
+        parse_response(tcp_stream)
+    }
+}
 
-        println!("{buffer}");
+fn parse_response(tcp_stream: TcpStream) -> HttpResponse {
+    tcp_stream
+        .set_read_timeout(Some(Duration::from_secs(30)))
+        .unwrap();
 
-        HttpResponse {
-            status: HttpStatus::ServerError,
-            body: None,
+    let mut reader = BufReader::new(&tcp_stream);
+    let mut start_line = String::new();
+
+    reader
+        .read_line(&mut start_line)
+        .unwrap_or_else(|e| panic!("Couldn't parse response. {e}"));
+
+    let mut start_line_iter = start_line.split_whitespace();
+
+    start_line_iter.next().unwrap_or("");
+    let status = start_line_iter
+        .next()
+        .unwrap_or_else(|| panic!("Couldn't parse response status code"));
+
+    let status = HttpStatus::from_str(status)
+        .unwrap_or_else(|e| panic!("Couldn't parse response status code. {e}"));
+
+    let headers = read_headers(&mut reader);
+    headers
+        .to_lowercase()
+        .find(TRANSFER_ENCODING_CHUNKED)
+        .unwrap_or_else(|| panic!("Couldn't find \"{TRANSFER_ENCODING_CHUNKED}\" header"));
+
+    let body = read_chunked_body(&mut reader);
+
+    HttpResponse {
+        status,
+        body: Some(body),
+    }
+}
+
+fn read_headers(reader: &mut BufReader<&TcpStream>) -> String {
+    let mut buffer = String::new();
+    let mut current_string = String::new();
+
+    loop {
+        current_string.clear();
+        reader
+            .read_line(&mut current_string)
+            .unwrap_or_else(|e| panic!("Couldn't parse response headers. {e}"));
+
+        if current_string == "\r\n" {
+            break;
+        }
+
+        buffer = format!("{buffer}{current_string}");
+    }
+
+    buffer
+}
+
+fn read_chunked_body(reader: &mut BufReader<&TcpStream>) -> String {
+    let mut buffer = String::new();
+    let mut bytes_num = 0;
+    let mut chunk = String::new();
+    let mut junk = String::new();
+
+    loop {
+        chunk.clear();
+
+        reader
+            .read_line(&mut chunk)
+            .unwrap_or_else(|e| panic!("Error while reading response body. {e}"));
+
+        chunk = chunk.replace("\r\n", "");
+
+        let chunk_length = usize::from_str_radix(&chunk, 16)
+            .unwrap_or_else(|e| panic!("Couldn't parse response chunk size. {e}"));
+
+        if chunk_length == 0 {
+            break;
+        }
+
+        loop {
+            if bytes_num == chunk_length {
+                reader
+                    .read_line(&mut junk)
+                    .unwrap_or_else(|e| panic!("Couldn't read new line character. {e}"));
+                buffer.push_str("\r");
+
+                bytes_num = 0;
+                break;
+            }
+
+            bytes_num += reader
+                .read_line(&mut buffer)
+                .unwrap_or_else(|e| panic!("Error while reading response body. {e}"));
         }
     }
+
+    buffer
 }
 
 #[derive(Debug)]
