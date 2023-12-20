@@ -1,9 +1,6 @@
-const OLLAMA_URL: &str = "host.docker.internal:11434";
-const CHAT_ENDPOINT: &str = "/api/chat";
-
 use serde::Deserialize;
 
-use super::http_client::{HttpMethod, HttpRequest, HttpStatus};
+use super::http_client::{HttpBodyType, HttpMethod, HttpRequest, HttpStatus};
 
 #[derive(Deserialize, Default)]
 struct OllamaMessage {
@@ -16,7 +13,10 @@ struct OllamaResponseChunk {
     message: OllamaMessage,
 }
 
-pub fn get_ollama_response(user_question: &str) -> String {
+const OLLAMA_URL: &str = "host.docker.internal:11434";
+const CHAT_ENDPOINT: &str = "/api/chat";
+
+pub fn get_ollama_response(user_question: &str) -> Result<String, String> {
     let json_data = format!(
         r#"{{
   "model": "llama2",
@@ -39,7 +39,13 @@ pub fn get_ollama_response(user_question: &str) -> String {
 
     match &response.status {
         HttpStatus::Ok => (),
-        _ => panic!("Error while making request to ollama"),
+        _ => {
+            if let HttpBodyType::Regular(body) = response.body {
+                return Err(body);
+            }
+
+            return Err(String::from("Surely it will not get here"));
+        }
     }
 
     let mut response_buffer = String::new();
@@ -56,5 +62,5 @@ pub fn get_ollama_response(user_question: &str) -> String {
         _ => todo!(),
     }
 
-    response_buffer
+    Ok(response_buffer)
 }

@@ -1,15 +1,40 @@
 use std::{
     collections::HashMap,
     fmt::Display,
-    io::{BufRead, BufReader, Write},
+    io::Write,
     net::{TcpStream, ToSocketAddrs},
     str::FromStr,
-    time::Duration,
-    usize,
 };
 
-const TRANSFER_ENCODING_CHUNKED_HEADER: &str = "transfer-encoding: chunked";
-const CONTENT_LENGTH_HEADER: &str = "content-length";
+use super::utils::parse_response;
+
+#[derive(Debug)]
+pub enum HttpMethod {
+    Get,
+    Post,
+    Put,
+    Delete,
+}
+
+#[derive(Debug)]
+pub enum HttpStatus {
+    Ok,
+    BadRequest,
+    ServerError,
+}
+
+#[derive(Debug)]
+pub struct HttpResponse {
+    pub status: HttpStatus,
+    pub body: HttpBodyType,
+}
+
+#[derive(Debug)]
+pub enum HttpBodyType {
+    Regular(String),
+    Chunked(Vec<String>),
+    None,
+}
 
 #[derive(Debug)]
 pub struct HttpRequest<'a, A>
@@ -92,128 +117,6 @@ where
     }
 }
 
-fn parse_response(tcp_stream: TcpStream) -> HttpResponse {
-    tcp_stream
-        .set_read_timeout(Some(Duration::from_secs(30)))
-        .unwrap();
-
-    let mut reader = BufReader::new(&tcp_stream);
-    let mut start_line = String::new();
-
-    reader
-        .read_line(&mut start_line)
-        .unwrap_or_else(|e| panic!("Couldn't parse response. {e}"));
-
-    let mut start_line_iter = start_line.split_whitespace();
-
-    start_line_iter.next().unwrap_or("");
-    let status = start_line_iter
-        .next()
-        .unwrap_or_else(|| panic!("Couldn't parse response status code"));
-
-    let status = HttpStatus::from_str(status)
-        .unwrap_or_else(|e| panic!("Couldn't parse response status code. {e}"));
-
-    let headers = read_headers(&mut reader);
-    let body = parse_body(headers, &mut reader);
-
-    HttpResponse { status, body }
-}
-
-fn parse_body(headers: Vec<String>, reader: &mut BufReader<&TcpStream>) -> HttpBodyType {
-    let body_header = headers
-        .iter()
-        .find(|h| {
-            h.find(TRANSFER_ENCODING_CHUNKED_HEADER).is_some()
-                || h.find(CONTENT_LENGTH_HEADER).is_some()
-        })
-        .unwrap_or_else(|| {
-            panic!("Couldn't find \"Content-length\" or \"Transfer-encoding: chunked\" headers")
-        });
-
-    let body = if body_header.find(TRANSFER_ENCODING_CHUNKED_HEADER).is_some() {
-        HttpBodyType::Chunked(read_chunked_body(reader))
-    } else {
-        // parse body using Content-length header
-        todo!()
-    };
-
-    body
-}
-
-fn read_headers(reader: &mut BufReader<&TcpStream>) -> Vec<String> {
-    let mut buffer = Vec::new();
-    let mut current_string = String::new();
-
-    loop {
-        current_string.clear();
-        reader
-            .read_line(&mut current_string)
-            .unwrap_or_else(|e| panic!("Couldn't parse response headers. {e}"));
-
-        if current_string == "\r\n" {
-            break;
-        }
-
-        buffer.push(current_string.to_lowercase());
-    }
-
-    buffer
-}
-
-fn read_chunked_body(reader: &mut BufReader<&TcpStream>) -> Vec<String> {
-    let mut buffer = Vec::new();
-    let mut bytes_num = 0;
-    let mut chunk = String::new();
-    let mut junk = String::new();
-
-    loop {
-        chunk.clear();
-
-        reader
-            .read_line(&mut chunk)
-            .unwrap_or_else(|e| panic!("Error while reading response body. {e}"));
-
-        chunk = chunk.replace("\r\n", "");
-
-        let chunk_length = usize::from_str_radix(&chunk, 16)
-            .unwrap_or_else(|e| panic!("Couldn't parse response chunk size. {e}"));
-
-        if chunk_length == 0 {
-            break;
-        }
-
-        chunk.clear();
-
-        loop {
-            if bytes_num == chunk_length {
-                reader
-                    .read_line(&mut junk)
-                    .unwrap_or_else(|e| panic!("Couldn't read new line character. {e}"));
-
-                bytes_num = 0;
-                buffer.push(chunk.clone());
-
-                break;
-            }
-
-            bytes_num += reader
-                .read_line(&mut chunk)
-                .unwrap_or_else(|e| panic!("Error while reading response body. {e}"));
-        }
-    }
-
-    buffer
-}
-
-#[derive(Debug)]
-pub enum HttpMethod {
-    Get,
-    Post,
-    Put,
-    Delete,
-}
-
 impl Display for HttpMethod {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -225,34 +128,14 @@ impl Display for HttpMethod {
     }
 }
 
-#[derive(Debug)]
-pub enum HttpStatus {
-    Ok,
-    BadRequest,
-    ServerError,
-}
-
-#[derive(Debug)]
-pub struct HttpResponse {
-    pub status: HttpStatus,
-    pub body: HttpBodyType,
-}
-
-#[derive(Debug)]
-pub enum HttpBodyType {
-    Regular(String),
-    Chunked(Vec<String>),
-    None,
-}
-
 impl FromStr for HttpStatus {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "200" => Ok(HttpStatus::Ok),
-            "400" => Ok(HttpStatus::Ok),
-            "500" => Ok(HttpStatus::Ok),
+            "400" => Ok(HttpStatus::BadRequest),
+            "500" => Ok(HttpStatus::ServerError),
             _ => Err("Unknown status code response".to_string()),
         }
     }

@@ -1,4 +1,4 @@
-use axum::{routing::post, Router};
+use axum::{http::StatusCode, response::IntoResponse, routing::post, Router};
 use ollama_client::ollama_client::get_ollama_response;
 
 pub mod ollama_client;
@@ -11,6 +11,9 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-async fn root(message: String) -> String {
-    get_ollama_response(&message)
+async fn root(message: String) -> impl IntoResponse {
+    match get_ollama_response(&message) {
+        Ok(result) => (StatusCode::OK, result),
+        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err),
+    }
 }
