@@ -8,7 +8,8 @@ use std::{
     usize,
 };
 
-const TRANSFER_ENCODING_CHUNKED: &str = "transfer-encoding: chunked";
+const TRANSFER_ENCODING_CHUNKED_HEADER: &str = "transfer-encoding: chunked";
+const CONTENT_LENGTH_HEADER: &str = "content-length";
 
 #[derive(Debug)]
 pub struct HttpRequest<'a, A>
@@ -114,21 +115,34 @@ fn parse_response(tcp_stream: TcpStream) -> HttpResponse {
         .unwrap_or_else(|e| panic!("Couldn't parse response status code. {e}"));
 
     let headers = read_headers(&mut reader);
-    headers
-        .to_lowercase()
-        .find(TRANSFER_ENCODING_CHUNKED)
-        .unwrap_or_else(|| panic!("Couldn't find \"{TRANSFER_ENCODING_CHUNKED}\" header"));
+    let body = parse_body(headers, &mut reader);
 
-    let body = read_chunked_body(&mut reader);
-
-    HttpResponse {
-        status,
-        body: Some(body),
-    }
+    HttpResponse { status, body }
 }
 
-fn read_headers(reader: &mut BufReader<&TcpStream>) -> String {
-    let mut buffer = String::new();
+fn parse_body(headers: Vec<String>, reader: &mut BufReader<&TcpStream>) -> HttpBodyType {
+    let body_header = headers
+        .iter()
+        .find(|h| {
+            h.find(TRANSFER_ENCODING_CHUNKED_HEADER).is_some()
+                || h.find(CONTENT_LENGTH_HEADER).is_some()
+        })
+        .unwrap_or_else(|| {
+            panic!("Couldn't find \"Content-length\" or \"Transfer-encoding: chunked\" headers")
+        });
+
+    let body = if body_header.find(TRANSFER_ENCODING_CHUNKED_HEADER).is_some() {
+        HttpBodyType::Chunked(read_chunked_body(reader))
+    } else {
+        // parse body using Content-length header
+        todo!()
+    };
+
+    body
+}
+
+fn read_headers(reader: &mut BufReader<&TcpStream>) -> Vec<String> {
+    let mut buffer = Vec::new();
     let mut current_string = String::new();
 
     loop {
@@ -141,14 +155,14 @@ fn read_headers(reader: &mut BufReader<&TcpStream>) -> String {
             break;
         }
 
-        buffer = format!("{buffer}{current_string}");
+        buffer.push(current_string.to_lowercase());
     }
 
     buffer
 }
 
-fn read_chunked_body(reader: &mut BufReader<&TcpStream>) -> String {
-    let mut buffer = String::new();
+fn read_chunked_body(reader: &mut BufReader<&TcpStream>) -> Vec<String> {
+    let mut buffer = Vec::new();
     let mut bytes_num = 0;
     let mut chunk = String::new();
     let mut junk = String::new();
@@ -169,19 +183,22 @@ fn read_chunked_body(reader: &mut BufReader<&TcpStream>) -> String {
             break;
         }
 
+        chunk.clear();
+
         loop {
             if bytes_num == chunk_length {
                 reader
                     .read_line(&mut junk)
                     .unwrap_or_else(|e| panic!("Couldn't read new line character. {e}"));
-                buffer.push_str("\r");
 
                 bytes_num = 0;
+                buffer.push(chunk.clone());
+
                 break;
             }
 
             bytes_num += reader
-                .read_line(&mut buffer)
+                .read_line(&mut chunk)
                 .unwrap_or_else(|e| panic!("Error while reading response body. {e}"));
         }
     }
@@ -218,7 +235,14 @@ pub enum HttpStatus {
 #[derive(Debug)]
 pub struct HttpResponse {
     pub status: HttpStatus,
-    pub body: Option<String>,
+    pub body: HttpBodyType,
+}
+
+#[derive(Debug)]
+pub enum HttpBodyType {
+    Regular(String),
+    Chunked(Vec<String>),
+    None,
 }
 
 impl FromStr for HttpStatus {

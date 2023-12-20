@@ -16,11 +16,6 @@ struct OllamaResponseChunk {
     message: OllamaMessage,
 }
 
-#[derive(Deserialize)]
-struct OllamaDone {
-    done: bool,
-}
-
 pub fn get_ollama_response(user_question: &str) -> String {
     let json_data = format!(
         r#"{{
@@ -47,27 +42,18 @@ pub fn get_ollama_response(user_question: &str) -> String {
         _ => panic!("Error while making request to ollama"),
     }
 
-    let body = response
-        .body
-        .unwrap_or_else(|| panic!("Got empty body in response"));
-
-    let mut chunks_split = body.split("\r");
-
     let mut response_buffer = String::new();
 
-    while let Some(chunk) = chunks_split.next() {
-        let chunk_obj: Result<OllamaResponseChunk, serde_json::Error> = serde_json::from_str(chunk);
+    match response.body {
+        super::http_client::HttpBodyType::Chunked(chunks) => {
+            for chunk in chunks {
+                let chunk_obj: OllamaResponseChunk = serde_json::from_str(&chunk)
+                    .unwrap_or_else(|e| panic!("Failed to deserialize ollama response chunk. {e}"));
 
-        if chunk_obj.is_ok() {
-            response_buffer.push_str(&chunk_obj.unwrap().message.content);
-        } else if chunk != "" {
-            let chunk_obj: OllamaDone = serde_json::from_str(chunk)
-                .unwrap_or_else(|e| panic!("Failed to deserialize ollama response chunk. {e}"));
-
-            if !chunk_obj.done {
-                panic!("Something went wrong. Didn't get last ollama response chunk");
+                response_buffer.push_str(&chunk_obj.message.content);
             }
         }
+        _ => todo!(),
     }
 
     response_buffer
