@@ -9,16 +9,20 @@ use html_templates::{
     html_template::HtmlTemplate,
 };
 use ollama_client::ollama_client::get_ollama_response;
+use tower_http::services::ServeDir;
 
 pub mod html_templates;
 pub mod ollama_client;
 
 #[tokio::main]
 async fn main() {
+    let serve_dir = ServeDir::new("static");
+
     let app = Router::new()
         .route("/", get(root))
         .route("/clicked", post(clicked))
-        .route("/chat", post(chat));
+        .route("/chat", post(chat))
+        .nest_service("/static", serve_dir);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:6080").await.unwrap();
     axum::serve(listener, app).await.unwrap();
