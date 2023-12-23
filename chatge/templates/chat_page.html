@@ -8,6 +8,17 @@
     <link href="static/pepega.webp" rel="icon">
     <link href="static/style.css" rel="stylesheet">
     <script src="https://unpkg.com/htmx.org@1.9.9"></script>
+    <script>
+        htmx.on("htmx:afterRequest", function (evt) {
+            let chatArea = document.querySelector('.chat-area');
+            let input = document.querySelector('.input');
+
+            if (!chatArea || !input) return;
+
+            chatArea.childNodes[chatArea.childNodes.length - 1].scrollIntoView(true);
+            input.value = "";
+        });    
+    </script>
 </head>
 
 <body>
@@ -17,87 +28,16 @@
             <div class="chat-container">
                 <div class="chat-scrollable">
                     <div class="chat-area">
-                        <div class="chat-message">
-                            <div class="message-from">Me 15:57</div>
-                            Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur
-                            cupidatat2.
-                        </div>
-                        <div class="chat-message">
-                            <div class="message-from">Bot 15:58</div>
-                            Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur
-                            cupidatat2.
-                        </div>
-                        <div class="chat-message">
-                            <div class="message-from">Me 16:01</div>
-                            Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur
-                            cupidatat2.
-                        </div>
-                        <div class="chat-message">
-                            <div class="message-from">Me 15:57</div>
-                            Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur
-                            cupidatat2.
-                        </div>
-                        <div class="chat-message">
-                            <div class="message-from">Bot 15:58</div>
-                            Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur
-                            cupidatat2.
-                        </div>
-                        <div class="chat-message">
-                            <div class="message-from">Me 16:01</div>
-                            Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur
-                            cupidatat2.
-                        </div>
-                        <div class="chat-message">
-                            <div class="message-from">Me 15:57</div>
-                            Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur
-                            cupidatat2.
-                        </div>
-                        <div class="chat-message">
-                            <div class="message-from">Bot 15:58</div>
-                            Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur
-                            cupidatat2.
-                        </div>
-                        <div class="chat-message">
-                            <div class="message-from">Me 16:01</div>
-                            Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur
-                            cupidatat2.
-                        </div>
-                        <div class="chat-message">
-                            <div class="message-from">Me 15:57</div>
-                            Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur
-                            cupidatat2.
-                        </div>
-                        <div class="chat-message">
-                            <div class="message-from">Bot 15:58</div>
-                            Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur
-                            cupidatat2.
-                        </div>
-                        <div class="chat-message">
-                            <div class="message-from">Me 16:01</div>
-                            Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur
-                            cupidatat2.
-                        </div>
-                        <div class="chat-message">
-                            <div class="message-from">Me 15:57</div>
-                            Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur
-                            cupidatat2.
-                        </div>
-                        <div class="chat-message">
-                            <div class="message-from">Bot 15:58</div>
-                            Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur
-                            cupidatat2.
-                        </div>
-                        <div class="chat-message">
-                            <div class="message-from">Me 16:01</div>
-                            Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur
-                            cupidatat2.
-                        </div>
                     </div>
                 </div>
                 <div class="typing-area">
-                    <input class="input" placeholder="Write a message..." />
+                    <input class="input" name="message" placeholder="Write a message..." />
                     <button class="send-button">Send</button>
                 </div>
+                <div hx-post="/show-my-message" hx-trigger="click from:.send-button" hx-target=".chat-area"
+                    hx-swap="beforeend" hx-include=".input"></div>
+                <!-- <div hx-post="/show-my-message" hx-trigger="click from:.send-button" hx-target=".chat-area" -->
+                <!--     hx-swap="beforeend"></div> -->
             </div>
         </div>
         <div></div>

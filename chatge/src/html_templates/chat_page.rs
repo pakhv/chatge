@@ -9,3 +9,11 @@ pub struct ChatPage {}
 pub struct Clicked {
     pub message: String,
 }
+
+#[derive(Template)]
+#[template(path = "chat_message.html")]
+pub struct Message {
+    pub from: String,
+    pub time: String,
+    pub text: String,
+}
