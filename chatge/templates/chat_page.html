@@ -2,7 +2,7 @@
 <html lang="en">
 
 <head>
-    <title></title>
+    <title>Chatge</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="static/style.css" rel="stylesheet">
@@ -10,9 +10,23 @@
 </head>
 
 <body>
-    <button hx-post="/clicked" hx-swap="outerHTML">
-        Click Me
-    </button>
+    <div class="main-container">
+        <div></div>
+        <div>
+            <div class="chat-container">
+                <div class="chat-area">
+                    <!-- <div > -->
+                    <!--     1234 -->
+                    <!-- </div> -->
+                </div>
+                <div class="typing-area">
+                    <input class="input" placeholder="Write a message..." />
+                    <button class="send-button">Send</button>
+                </div>
+            </div>
+        </div>
+        <div></div>
+    </div>
 </body>
 
 </html>
