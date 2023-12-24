@@ -10,10 +10,12 @@ use html_templates::{
     chat_page::{ChatPage, Message},
     html_template::HtmlTemplate,
 };
+use models::ChatRequest;
 use ollama_client::ollama_client::get_ollama_response;
 use tower_http::services::ServeDir;
 
 pub mod html_templates;
+pub mod models;
 pub mod ollama_client;
 
 #[tokio::main]
@@ -42,10 +44,8 @@ async fn chat(message: String) -> impl IntoResponse {
     }
 }
 
-async fn show_my_message(message: String) -> impl IntoResponse {
-    let mut input_params = message.split('=');
-    let _ = input_params.next();
-    let text = input_params.next().unwrap().replace("%20", " ");
+async fn show_my_message(request: String) -> impl IntoResponse {
+    let request: ChatRequest = serde_json::from_str(&request).unwrap();
 
     let datetime: DateTime<Local> = Local::now();
     let time = datetime.format("%H:%M").to_string();
@@ -53,16 +53,14 @@ async fn show_my_message(message: String) -> impl IntoResponse {
     HtmlTemplate(Message {
         from: String::from("Me"),
         time,
-        text,
+        text: request.message,
     })
 }
 
-async fn get_bot_response(message: String) -> impl IntoResponse {
-    let mut input_params = message.split('=');
-    let _ = input_params.next();
-    let text = input_params.next().unwrap().replace("%20", " ");
+async fn get_bot_response(request: String) -> impl IntoResponse {
+    let request: ChatRequest = serde_json::from_str(&request).unwrap();
 
-    match get_ollama_response(&text) {
+    match get_ollama_response(&request.message) {
         Ok(result) => {
             let datetime: DateTime<Local> = Local::now();
             let time = datetime.format("%H:%M").to_string();
