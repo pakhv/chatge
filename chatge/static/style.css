@@ -44,6 +44,10 @@ body {
     align-items: flex-start;
 }
 
+.chat-area>div:nth-child(2n) {
+    background-color: #E9ECEF;
+}
+
 .chat-area > :first-child {
     margin-top: auto;
 }
@@ -80,12 +84,14 @@ body {
     cursor: pointer;
 }
 
-.send-button:hover {
+.send-button:hover:enabled {
     background-color: #2d6ed6;
 }
 
 .chat-message {
     padding: 0.5rem 2rem;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .message-from {
@@ -95,4 +101,9 @@ body {
 
 .message-text {
     white-space: pre-line;
+}
+
+.send-button:disabled {
+    opacity: 0.5;
+    cursor: auto;
 }

@@ -18,7 +18,7 @@ pub mod html_templates;
 pub mod models;
 pub mod ollama_client;
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn main() {
     let serve_dir = ServeDir::new("static");
 
