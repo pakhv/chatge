@@ -1,9 +1,11 @@
 use axum::{
-    http::StatusCode,
+    body::Body,
+    http::{Response, StatusCode},
     response::IntoResponse,
     routing::{get, post},
     Router,
 };
+use chrono::{DateTime, Local};
 use html_templates::{
     chat_page::{ChatPage, Message},
     html_template::HtmlTemplate,
@@ -22,6 +24,7 @@ async fn main() {
         .route("/", get(root))
         .route("/chat", post(chat))
         .route("/show-my-message", post(show_my_message))
+        .route("/get-bot-response", post(get_bot_response))
         .nest_service("/static", serve_dir);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:6080").await.unwrap();
@@ -42,11 +45,38 @@ async fn chat(message: String) -> impl IntoResponse {
 async fn show_my_message(message: String) -> impl IntoResponse {
     let mut input_params = message.split('=');
     let _ = input_params.next();
-    let text = input_params.next().unwrap();
+    let text = input_params.next().unwrap().replace("%20", " ");
+
+    let datetime: DateTime<Local> = Local::now();
+    let time = datetime.format("%H:%M").to_string();
 
     HtmlTemplate(Message {
         from: String::from("Me"),
-        time: String::from("21:21"),
-        text: String::from(text),
+        time,
+        text,
     })
+}
+
+async fn get_bot_response(message: String) -> impl IntoResponse {
+    let mut input_params = message.split('=');
+    let _ = input_params.next();
+    let text = input_params.next().unwrap().replace("%20", " ");
+
+    match get_ollama_response(&text) {
+        Ok(result) => {
+            let datetime: DateTime<Local> = Local::now();
+            let time = datetime.format("%H:%M").to_string();
+
+            return HtmlTemplate(Message {
+                from: String::from("Bot"),
+                time,
+                text: result,
+            })
+            .into();
+        }
+        Err(err) => Response::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .body(Body::from(format!("{err}")))
+            .unwrap(),
+    }
 }

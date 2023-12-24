@@ -17,7 +17,22 @@
 
             chatArea.childNodes[chatArea.childNodes.length - 1].scrollIntoView(true);
             input.value = "";
-        });    
+        });
+
+        htmx.on("htmx:confirm", function (evt) {
+            let input = document.querySelector('.input');
+
+            if (!input.value || !input.value?.trim()) evt.preventDefault();
+        });
+
+        function handleKeyup(e) {
+            console.log("here")
+            let sendButton = document.querySelector('.send-button');
+
+            if (e.key === 'Enter') {
+                sendButton?.click();
+            }
+        };
     </script>
 </head>
 
@@ -31,13 +46,14 @@
                     </div>
                 </div>
                 <div class="typing-area">
-                    <input class="input" name="message" placeholder="Write a message..." />
+                    <input class="input" name="message" placeholder="Write a message..."
+                        hx-on:keyup="handleKeyup(event)" />
                     <button class="send-button">Send</button>
                 </div>
                 <div hx-post="/show-my-message" hx-trigger="click from:.send-button" hx-target=".chat-area"
                     hx-swap="beforeend" hx-include=".input"></div>
-                <!-- <div hx-post="/show-my-message" hx-trigger="click from:.send-button" hx-target=".chat-area" -->
-                <!--     hx-swap="beforeend"></div> -->
+                <div hx-post="/get-bot-response" hx-trigger="click from:.send-button" hx-target=".chat-area"
+                    hx-swap="beforeend" hx-include=".input"></div>
             </div>
         </div>
         <div></div>
