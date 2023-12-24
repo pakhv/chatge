@@ -12,14 +12,16 @@ struct OllamaResponseChunk {
     #[serde(default)]
     message: OllamaMessage,
 }
-
-const OLLAMA_URL: &str = "host.docker.internal:11434";
 const CHAT_ENDPOINT: &str = "/api/chat";
 
-pub fn get_ollama_response(user_question: &str) -> Result<String, String> {
+pub fn get_ollama_response(
+    user_question: &str,
+    ollama_url: String,
+    ollama_model: String,
+) -> Result<String, String> {
     let json_data = format!(
         r#"{{
-  "model": "llama2",
+  "model": "{ollama_model}",
   "messages": [
     {{
       "role": "user",
@@ -29,10 +31,10 @@ pub fn get_ollama_response(user_question: &str) -> Result<String, String> {
 }}"#
     );
 
-    let response = HttpRequest::new(OLLAMA_URL)
+    let response = HttpRequest::new(ollama_url.clone())
         .set_method(HttpMethod::Post)
         .set_endpoint(CHAT_ENDPOINT)
-        .set_header("Host", OLLAMA_URL)
+        .set_header("Host", &ollama_url)
         .set_header("Content-Type", "application/json")
         .set_body(json_data.as_bytes())
         .send();
