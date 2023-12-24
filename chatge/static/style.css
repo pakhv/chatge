@@ -54,7 +54,7 @@ body {
 
 .typing-area {
     border-top: solid 1px #CED4DA;
-    height: 100%;
+    max-height: 100px;
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -74,8 +74,8 @@ body {
 
 .send-button {
     margin-right: 1.5rem;
-    background-color: #3a86ff;
-    border: solid 1px #3a86ff;
+    background-color: #3A86FF;
+    border: solid 1px #3A86FF;
     border-radius: 1.5rem;
     color: white;
     height: 50px;
@@ -85,7 +85,7 @@ body {
 }
 
 .send-button:hover:enabled {
-    background-color: #2d6ed6;
+    background-color: #2D6ED6;
 }
 
 .chat-message {

@@ -27,11 +27,9 @@
                     <button class="send-button">Send</button>
                 </div>
                 <div hx-post="/show-my-message" hx-trigger="click from:.send-button" hx-target=".chat-area"
-                    hx-swap="beforeend" hx-include=".input" hx-ext="json-enc" hx-indicator=".send-button"
-                    hx-disabled-elt=".send-button"></div>
+                    hx-swap="beforeend" hx-include=".input" hx-ext="json-enc" hx-disabled-elt=".send-button"></div>
                 <div hx-post="/get-bot-response" hx-trigger="click from:.send-button" hx-target=".chat-area"
-                    hx-swap="beforeend" hx-include=".input" hx-ext="json-enc" hx-indicator=".send-button"
-                    hx-disabled-elt=".send-button"></div>
+                    hx-swap="beforeend" hx-include=".input" hx-ext="json-enc" hx-disabled-elt=".send-button"></div>
             </div>
         </div>
         <div></div>
