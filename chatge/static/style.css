@@ -92,3 +92,7 @@ body {
     font-size: 14px;
     color: #6C757D;
 }
+
+.message-text {
+    white-space: pre-line;
+}
