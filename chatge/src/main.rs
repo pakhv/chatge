@@ -58,23 +58,27 @@ async fn show_my_message(request: String) -> impl IntoResponse {
 }
 
 async fn get_bot_response(request: String) -> impl IntoResponse {
-    let request: ChatRequest = serde_json::from_str(&request).unwrap();
+    let handle = tokio::spawn(async move {
+        let request: ChatRequest = serde_json::from_str(&request).unwrap();
 
-    match get_ollama_response(&request.message) {
-        Ok(result) => {
-            let datetime: DateTime<Local> = Local::now();
-            let time = datetime.format("%H:%M").to_string();
+        match get_ollama_response(&request.message) {
+            Ok(result) => {
+                let datetime: DateTime<Local> = Local::now();
+                let time = datetime.format("%H:%M").to_string();
 
-            return HtmlTemplate(Message {
-                from: String::from("Bot"),
-                time,
-                text: result,
-            })
-            .into();
+                return HtmlTemplate(Message {
+                    from: String::from("Bot"),
+                    time,
+                    text: result,
+                })
+                .into();
+            }
+            Err(err) => Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body(Body::from(format!("{err}")))
+                .unwrap(),
         }
-        Err(err) => Response::builder()
-            .status(StatusCode::INTERNAL_SERVER_ERROR)
-            .body(Body::from(format!("{err}")))
-            .unwrap(),
-    }
+    });
+
+    handle.await.unwrap()
 }
