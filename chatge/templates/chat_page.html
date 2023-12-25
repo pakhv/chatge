@@ -24,7 +24,7 @@
                     <input class="input" name="message" placeholder="Write a message..."
                         hx-on:keyup="handleKeyup(event)" />
                     <button hx-post="/show-my-message" hx-trigger="click" hx-target=".chat-area" hx-swap="beforeend"
-                        hx-include=".input" hx-disabled-elt=".send-button" class="send-button">Send</button>
+                        hx-include=".input" class="send-button">Send</button>
                 </div>
             </div>
         </div>

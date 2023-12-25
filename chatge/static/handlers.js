@@ -18,17 +18,20 @@ htmx.on("htmx:confirm", function(evt) {
 });
 
 htmx.on("htmx:afterSwap", function(evt) {
+    let sendButton = document.querySelector('.send-button');
+    sendButton.disabled = true;
+
     htmx.ajax("POST", "/get-bot-response", {
         target: ".chat-area",
         swap: "beforeend",
-        values: evt.detail.requestConfig.parameters
-    });
+        values: evt.detail.requestConfig.parameters,
+    }).then(() => sendButton.disabled = false);
 });
 
 function handleKeyup(e) {
     let sendButton = document.querySelector('.send-button');
 
     if (e.key === 'Enter' && !sendButton.disabled) {
-        sendButton?.click();
+        sendButton.click();
     }
 };
