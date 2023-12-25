@@ -55,8 +55,12 @@ pub fn get_ollama_response(
     match response.body {
         super::http_client::HttpBodyType::Chunked(chunks) => {
             for chunk in chunks {
-                let chunk_obj: OllamaResponseChunk = serde_json::from_str(&chunk)
-                    .unwrap_or_else(|e| panic!("Failed to deserialize ollama response chunk. {e}"));
+                let chunk_obj: OllamaResponseChunk = match serde_json::from_str(&chunk) {
+                    Ok(result) => Ok(result),
+                    Err(err) => Err(format!(
+                        "Failed to deserialize ollama response chunk. {err}"
+                    )),
+                }?;
 
                 response_buffer.push_str(&chunk_obj.message.content);
             }
