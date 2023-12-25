@@ -23,12 +23,9 @@
                 <div class="typing-area">
                     <input class="input" name="message" placeholder="Write a message..."
                         hx-on:keyup="handleKeyup(event)" />
-                    <button class="send-button">Send</button>
+                    <button hx-post="/show-my-message" hx-trigger="click" hx-target=".chat-area" hx-swap="beforeend"
+                        hx-include=".input" hx-disabled-elt=".send-button" class="send-button">Send</button>
                 </div>
-                <div hx-post="/show-my-message" hx-trigger="click from:.send-button" hx-target=".chat-area"
-                    hx-swap="beforeend" hx-include=".input" hx-disabled-elt=".send-button"></div>
-                <div hx-post="/get-bot-response" hx-trigger="click from:.send-button" hx-target=".chat-area"
-                    hx-swap="beforeend" hx-include=".input" hx-disabled-elt=".send-button"></div>
             </div>
         </div>
         <div></div>

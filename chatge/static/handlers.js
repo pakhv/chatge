@@ -17,6 +17,14 @@ htmx.on("htmx:confirm", function(evt) {
     if (!input.value || !input.value?.trim()) evt.preventDefault();
 });
 
+htmx.on("htmx:afterSwap", function(evt) {
+    htmx.ajax("POST", "/get-bot-response", {
+        target: ".chat-area",
+        swap: "beforeend",
+        values: evt.detail.requestConfig.parameters
+    });
+});
+
 function handleKeyup(e) {
     let sendButton = document.querySelector('.send-button');
 
