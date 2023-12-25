@@ -82,10 +82,9 @@ where
         self
     }
 
-    pub fn send(&self) -> HttpResponse {
-        let mut tcp_stream = TcpStream::connect(&self.addr).unwrap_or_else(|e| {
-            panic!("Unable to connect to ollama server. {e}");
-        });
+    pub fn send(&self) -> Result<HttpResponse, String> {
+        let mut tcp_stream =
+            TcpStream::connect(&self.addr).to_result("Unable to connect to ollama server")?;
 
         let mut request = String::new();
         let first_line = format!("{} {} HTTP/1.1\r\n", self.method, self.endpoint);
@@ -109,11 +108,11 @@ where
             todo!()
         };
 
-        tcp_stream.write_all(&request_bytes).unwrap_or_else(|e| {
-            panic!("Error while writing to stream. {e}");
-        });
+        tcp_stream
+            .write_all(&request_bytes)
+            .to_result("Error while writing to stream")?;
 
-        parse_response(tcp_stream)
+        Ok(parse_response(tcp_stream)?)
     }
 }
 
@@ -137,6 +136,19 @@ impl FromStr for HttpStatus {
             "400" => Ok(HttpStatus::BadRequest),
             "500" => Ok(HttpStatus::ServerError),
             _ => Err("Unknown status code response".to_string()),
+        }
+    }
+}
+
+pub trait ToResult<T> {
+    fn to_result(self, message: &str) -> Result<T, String>;
+}
+
+impl<T> ToResult<T> for std::io::Result<T> {
+    fn to_result(self, message: &str) -> Result<T, String> {
+        match self {
+            Ok(result) => Ok(result),
+            Err(err) => Err(format!("{message}. {err}")),
         }
     }
 }

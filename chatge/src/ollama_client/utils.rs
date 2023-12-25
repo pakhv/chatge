@@ -5,12 +5,12 @@ use std::{
     time::Duration,
 };
 
-use super::http_client::{HttpBodyType, HttpResponse, HttpStatus};
+use super::http_client::{HttpBodyType, HttpResponse, HttpStatus, ToResult};
 
 const TRANSFER_ENCODING_CHUNKED_HEADER: &str = "transfer-encoding: chunked";
 const CONTENT_LENGTH_HEADER: &str = "content-length";
 
-pub fn parse_response(tcp_stream: TcpStream) -> HttpResponse {
+pub fn parse_response(tcp_stream: TcpStream) -> Result<HttpResponse, String> {
     tcp_stream
         .set_read_timeout(Some(Duration::from_secs(30)))
         .unwrap();
@@ -20,25 +20,29 @@ pub fn parse_response(tcp_stream: TcpStream) -> HttpResponse {
 
     reader
         .read_line(&mut start_line)
-        .unwrap_or_else(|e| panic!("Couldn't parse response. {e}"));
+        .to_result("Couldn't parse response")?;
 
     let mut start_line_iter = start_line.split_whitespace();
 
     start_line_iter.next().unwrap_or("");
-    let status = start_line_iter
-        .next()
-        .unwrap_or_else(|| panic!("Couldn't parse response status code"));
 
-    let status = HttpStatus::from_str(status)
-        .unwrap_or_else(|e| panic!("Couldn't parse response status code. {e}"));
+    let status = match start_line_iter.next() {
+        Some(str) => Ok(str),
+        None => Err("Couldn't parse response status code"),
+    }?;
 
-    let headers = read_headers(&mut reader);
-    let body = parse_body(headers, &mut reader);
+    let status = HttpStatus::from_str(status)?;
 
-    HttpResponse { status, body }
+    let headers = read_headers(&mut reader)?;
+    let body = parse_body(headers, &mut reader)?;
+
+    Ok(HttpResponse { status, body })
 }
 
-fn parse_body(headers: Vec<String>, reader: &mut BufReader<&TcpStream>) -> HttpBodyType {
+fn parse_body(
+    headers: Vec<String>,
+    reader: &mut BufReader<&TcpStream>,
+) -> Result<HttpBodyType, String> {
     let body_header = headers
         .into_iter()
         .find(|h| {
@@ -49,7 +53,7 @@ fn parse_body(headers: Vec<String>, reader: &mut BufReader<&TcpStream>) -> HttpB
 
     let body = if body_header.find(TRANSFER_ENCODING_CHUNKED_HEADER).is_some() {
         // parse chunks
-        HttpBodyType::Chunked(read_chunked_body(reader))
+        HttpBodyType::Chunked(read_chunked_body(reader)?)
     } else if body_header.find(CONTENT_LENGTH_HEADER).is_some() {
         // parse body using Content-length header
         todo!()
@@ -58,15 +62,15 @@ fn parse_body(headers: Vec<String>, reader: &mut BufReader<&TcpStream>) -> HttpB
         let mut buffer = Vec::new();
         reader
             .read_to_end(&mut buffer)
-            .unwrap_or_else(|e| panic!("Error while reading body. {e}"));
+            .to_result("Error while reading body")?;
 
         HttpBodyType::Regular(String::from_utf8(buffer).unwrap())
     };
 
-    body
+    Ok(body)
 }
 
-fn read_headers(reader: &mut BufReader<&TcpStream>) -> Vec<String> {
+fn read_headers(reader: &mut BufReader<&TcpStream>) -> Result<Vec<String>, String> {
     let mut buffer = Vec::new();
     let mut current_string = String::new();
 
@@ -74,7 +78,7 @@ fn read_headers(reader: &mut BufReader<&TcpStream>) -> Vec<String> {
         current_string.clear();
         reader
             .read_line(&mut current_string)
-            .unwrap_or_else(|e| panic!("Couldn't parse response headers. {e}"));
+            .to_result("Couldn't parse response headers")?;
 
         if current_string == "\r\n" {
             break;
@@ -83,10 +87,10 @@ fn read_headers(reader: &mut BufReader<&TcpStream>) -> Vec<String> {
         buffer.push(current_string.to_lowercase());
     }
 
-    buffer
+    Ok(buffer)
 }
 
-fn read_chunked_body(reader: &mut BufReader<&TcpStream>) -> Vec<String> {
+fn read_chunked_body(reader: &mut BufReader<&TcpStream>) -> Result<Vec<String>, String> {
     let mut buffer = Vec::new();
     let mut bytes_num = 0;
     let mut chunk = String::new();
@@ -97,12 +101,14 @@ fn read_chunked_body(reader: &mut BufReader<&TcpStream>) -> Vec<String> {
 
         reader
             .read_line(&mut chunk)
-            .unwrap_or_else(|e| panic!("Error while reading response body. {e}"));
+            .to_result("Error while reading response body")?;
 
         chunk = chunk.replace("\r\n", "");
 
-        let chunk_length = usize::from_str_radix(&chunk, 16)
-            .unwrap_or_else(|e| panic!("Couldn't parse response chunk size. {e}"));
+        let chunk_length = match usize::from_str_radix(&chunk, 16) {
+            Ok(result) => Ok(result),
+            Err(err) => Err(format!("Couldn't parse response chunk size. {err}")),
+        }?;
 
         if chunk_length == 0 {
             break;
@@ -114,7 +120,7 @@ fn read_chunked_body(reader: &mut BufReader<&TcpStream>) -> Vec<String> {
             if bytes_num == chunk_length {
                 reader
                     .read_line(&mut junk)
-                    .unwrap_or_else(|e| panic!("Couldn't read new line character. {e}"));
+                    .to_result("Couldn't read new line character")?;
 
                 bytes_num = 0;
                 buffer.push(chunk.clone());
@@ -124,9 +130,9 @@ fn read_chunked_body(reader: &mut BufReader<&TcpStream>) -> Vec<String> {
 
             bytes_num += reader
                 .read_line(&mut chunk)
-                .unwrap_or_else(|e| panic!("Error while reading response body. {e}"));
+                .to_result("Error while reading response body")?;
         }
     }
 
-    buffer
+    Ok(buffer)
 }

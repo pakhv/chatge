@@ -37,7 +37,7 @@ pub fn get_ollama_response(
         .set_header("Host", &ollama_url)
         .set_header("Content-Type", "application/json")
         .set_body(json_data.as_bytes())
-        .send();
+        .send()?;
 
     match &response.status {
         HttpStatus::Ok => (),
