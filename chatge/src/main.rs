@@ -6,7 +6,7 @@ use axum::{
     http::{Response, StatusCode},
     response::IntoResponse,
     routing::{get, post},
-    Router,
+    Form, Router,
 };
 use chrono::{DateTime, Local};
 use html_templates::{
@@ -52,11 +52,8 @@ async fn root() -> impl IntoResponse {
     HtmlTemplate(ChatPage {})
 }
 
-async fn show_my_message(request: String) -> impl IntoResponse {
-    let request: ChatRequest = serde_json::from_str(&request).unwrap();
-
-    let datetime: DateTime<Local> = Local::now();
-    let time = datetime.format("%H:%M").to_string();
+async fn show_my_message(Form(request): Form<ChatRequest>) -> impl IntoResponse {
+    let time = get_curren_time();
 
     HtmlTemplate(Message {
         from: String::from("Me"),
@@ -65,14 +62,14 @@ async fn show_my_message(request: String) -> impl IntoResponse {
     })
 }
 
-async fn get_bot_response(State(state): State<AppState>, request: String) -> impl IntoResponse {
+async fn get_bot_response(
+    State(state): State<AppState>,
+    Form(request): Form<ChatRequest>,
+) -> impl IntoResponse {
     let handle = tokio::spawn(async move {
-        let request: ChatRequest = serde_json::from_str(&request).unwrap();
-
         match get_ollama_response(&request.message, state.ollama_host, state.ollama_model) {
             Ok(result) => {
-                let datetime: DateTime<Local> = Local::now();
-                let time = datetime.format("%H:%M").to_string();
+                let time = get_curren_time();
 
                 return HtmlTemplate(Message {
                     from: String::from("Bot"),
@@ -89,4 +86,9 @@ async fn get_bot_response(State(state): State<AppState>, request: String) -> imp
     });
 
     handle.await.unwrap()
+}
+
+fn get_curren_time() -> String {
+    let datetime: DateTime<Local> = Local::now();
+    datetime.format("%H:%M").to_string()
 }
