@@ -4,11 +4,15 @@ htmx.on("htmx:afterRequest", function(evt) {
 
     if (!chatArea || !input) return;
 
-    chatArea.childNodes[chatArea.childNodes.length - 1].scrollIntoView(true);
-
     if (evt.detail.pathInfo.requestPath === "/show-my-message") {
         input.value = "";
     }
+
+    let lastMessage = Array.from(chatArea.childNodes)
+        .filter(n => n.classList && Array.from(n.classList).find(c => c === "chat-message"))
+        .slice(-1)
+        .pop();
+    lastMessage?.scrollIntoView(true);
 });
 
 htmx.on("htmx:confirm", function(evt) {
